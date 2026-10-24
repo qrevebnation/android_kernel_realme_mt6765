@@ -37,14 +37,15 @@ on:
         required: true
         default: 'Darkness'
         type: string
-
+  push:
+    branches:
+      - wip
 
 env:
-  KBUILD_BUILD_USER: ${{ github.event.inputs.build_user }}
-  KBUILD_BUILD_HOST: ${{ github.event.inputs.build_host }}
-  LOCALVERSION: ${{ github.event.inputs.localversion }}
+  KBUILD_BUILD_USER: ${{ github.event.inputs.build_user || 'qrevebnation' }}
+  KBUILD_BUILD_HOST: ${{ github.event.inputs.build_host || 'Darkness' }}
+  LOCALVERSION: ${{ github.event.inputs.localversion || '-Endfield 🪐' }}
   TZ: Asia/Jakarta
-  
 
 jobs:
   build:
@@ -55,7 +56,7 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.inputs.branch }}
+        ref: ${{ github.event.inputs.branch || github.ref }}
         fetch-depth: 1
 
     - name: Setup Environment
@@ -65,7 +66,7 @@ jobs:
         echo "DATE=$(date +%Y-%m-%d-%H-%M-%S)" >> $GITHUB_ENV
         git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 -b android10-release
         
-        TOOLCHAIN="${{ github.event.inputs.toolchain }}"
+        TOOLCHAIN="${{ github.event.inputs.toolchain || 'clang-r383902' }}"
         if [ "$TOOLCHAIN" = "proton-clang" ]; then
           echo "Cloning Proton-Clang (Optimized LLVM 13 with Polly)..."
           git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
@@ -98,7 +99,7 @@ jobs:
 
     - name: Build Kernel
       run: |
-        make CC=clang ARCH=arm64 O=~/out ${{ github.event.inputs.defconfig }}
+        make CC=clang ARCH=arm64 O=~/out ${{ github.event.inputs.defconfig || 'endfield_defconfig' }}
         make CC=clang ARCH=arm64 O=~/out olddefconfig
         make CC=clang ARCH=arm64 O=~/out -j$(nproc) \
           HEADER_ARCH=arm64 \
