@@ -8,6 +8,7 @@
 #include "klog.h" // IWYU pragma: keep
 #include "infra/seccomp_cache.h"
 
+#if defined(SECCOMP_ARCH_NATIVE_NR) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0))
 struct action_cache {
     DECLARE_BITMAP(allow_native, SECCOMP_ARCH_NATIVE_NR);
 #ifdef SECCOMP_ARCH_COMPAT
@@ -63,3 +64,12 @@ void ksu_seccomp_allow_cache(struct seccomp_filter *filter, int nr)
     }
 #endif
 }
+#else
+void ksu_seccomp_clear_cache(struct seccomp_filter *filter, int nr)
+{
+}
+
+void ksu_seccomp_allow_cache(struct seccomp_filter *filter, int nr)
+{
+}
+#endif

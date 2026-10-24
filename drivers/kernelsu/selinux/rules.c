@@ -15,41 +15,58 @@
 #include "linux/lsm_audit.h" // IWYU pragma: keep
 #include "xfrm.h"
 
-struct selinux_policy *backup_sepolicy;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
+#define KSU_COMPAT_USE_SELINUX_STATE
+#endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 #define SELINUX_POLICY_INSTEAD_SELINUX_SS
+#endif
+
+#ifdef KSU_COMPAT_USE_SELINUX_STATE
+struct selinux_policy *backup_sepolicy;
+#endif
 
 #define ALL NULL
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0))
 extern int avc_ss_reset(u32 seqno);
-#else
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 extern int avc_ss_reset(struct selinux_avc *avc, u32 seqno);
+#else
+extern int avc_ss_reset(u32 seqno);
 #endif
+
 // reset avc cache table, otherwise the new rules will not take effect if already denied
-static void reset_avc_cache()
+static void reset_avc_cache(void)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0))
     avc_ss_reset(0);
     selnl_notify_policyload(0);
     selinux_status_update_policyload(0);
-#else
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
     struct selinux_avc *avc = selinux_state.avc;
     avc_ss_reset(avc, 0);
     selnl_notify_policyload(0);
     selinux_status_update_policyload(&selinux_state, 0);
+#else
+    avc_ss_reset(0);
+    selnl_notify_policyload(0);
+    selinux_status_update_policyload(0);
 #endif
     selinux_xfrm_notify_policyload();
 }
 
 void apply_kernelsu_rules()
 {
-    struct selinux_policy *pol, *old_pol;
     struct policydb *db;
 
     if (!getenforce()) {
         pr_info("SELinux permissive or disabled, apply rules!\n");
     }
+
+#ifdef KSU_COMPAT_USE_SELINUX_STATE
+    struct selinux_policy *pol, *old_pol;
 
     mutex_lock(&selinux_state.policy_mutex);
 
@@ -83,6 +100,9 @@ void apply_kernelsu_rules()
     }
 
     db = &pol->policydb;
+#else
+    db = &policydb;
+#endif
 
     ksu_type(db, KERNEL_SU_DOMAIN, "domain");
     ksu_permissive(db, KERNEL_SU_DOMAIN);
@@ -156,6 +176,7 @@ void apply_kernelsu_rules()
     ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "getpgid");
     ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "sigkill");
 
+#ifdef KSU_COMPAT_USE_SELINUX_STATE
     rcu_assign_pointer(selinux_state.policy, pol);
     synchronize_rcu();
     ksu_destroy_sepolicy(old_pol);
@@ -163,6 +184,9 @@ void apply_kernelsu_rules()
     reset_avc_cache();
 out_unlock:
     mutex_unlock(&selinux_state.policy_mutex);
+#else
+    reset_avc_cache();
+#endif
 }
 
 #define KSU_SEPOLICY_MAX_BATCH_SIZE (8U * 1024U * 1024U)
@@ -462,6 +486,9 @@ int handle_sepolicy(void __user *user_data, u64 data_len)
         pr_info("SELinux permissive or disabled when handle policy!\n");
     }
 
+#ifdef KSU_COMPAT_USE_SELINUX_STATE
+    struct selinux_policy *pol, *old_pol;
+
     mutex_lock(&selinux_state.policy_mutex);
 
     old_pol = rcu_dereference_protected(selinux_state.policy, lockdep_is_held(&selinux_state.policy_mutex));
@@ -472,6 +499,9 @@ int handle_sepolicy(void __user *user_data, u64 data_len)
         goto out_unlock;
     }
     db = &pol->policydb;
+#else
+    db = &policydb;
+#endif
 
     cursor.cur = payload;
     cursor.end = payload + (size_t)data_len;
@@ -515,6 +545,7 @@ int handle_sepolicy(void __user *user_data, u64 data_len)
         cmd_index++;
     }
 
+#ifdef KSU_COMPAT_USE_SELINUX_STATE
     rcu_assign_pointer(selinux_state.policy, pol);
     synchronize_rcu();
     ksu_destroy_sepolicy(old_pol);
@@ -527,6 +558,11 @@ out_drop_new_policy:
     ksu_destroy_sepolicy(pol);
 out_unlock:
     mutex_unlock(&selinux_state.policy_mutex);
+#else
+    reset_avc_cache();
+    ret = success_cmd_count;
+out_drop_new_policy:
+#endif
 out_free:
     kvfree(payload);
 

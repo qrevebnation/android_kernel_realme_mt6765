@@ -14,7 +14,11 @@
 #include "arch.h"
 
 #if defined(__aarch64__)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
 #define KSU_SYS_PREFIX(name) __arm64_sys_##name
+#else
+#define KSU_SYS_PREFIX(name) sys_##name
+#endif
 #elif defined(__x86_64__)
 #define KSU_SYS_PREFIX(name) __x64_sys_##name
 #elif defined(__riscv)
@@ -30,6 +34,13 @@ static_assert(1 == 0, "Unsupported architecture!");
  *
  * usage: ksyscall(close, fd);
  */
+#if defined(__aarch64__) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0))
+#define __ksyscall(name, a, b, c, d, e, f)                                                                             \
+    ({                                                                                                                 \
+        extern long sys_##name();                                                                                      \
+        (long)sys_##name(a, b, c, d, e, f);                                                                           \
+    })
+#else
 #define __ksyscall(name, a, b, c, d, e, f)                                                                             \
     ({                                                                                                                 \
         extern long KSU_SYS_PREFIX(name)(const struct pt_regs *);                                                      \
@@ -42,6 +53,7 @@ static_assert(1 == 0, "Unsupported architecture!");
         PT_REGS_PARM6(&__ksu_regs) = (unsigned long)(f);                                                               \
         (long)KSU_SYS_PREFIX(name)(&__ksu_regs);                                                                       \
     })
+#endif
 
 // https://elixir.bootlin.com/musl/v1.2.6/source/src/internal/syscall.h#L45
 #define ksyscall_0(name) __ksyscall(name, 0, 0, 0, 0, 0, 0)

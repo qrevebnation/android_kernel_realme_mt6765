@@ -123,6 +123,8 @@ static int __init ksu_find_ni_syscall_slots(int *out_slots, int max_slots)
         return 0;
 
     ni_syscall = (unsigned long)ksu_resolve_symbol_for_functable_hook("__arm64_sys_ni_syscall");
+    if (!ni_syscall)
+        ni_syscall = (unsigned long)ksu_resolve_symbol_for_functable_hook("sys_ni_syscall");
 
     pr_info("sys_ni_syscall: 0x%lx\n", ni_syscall);
 

@@ -54,6 +54,7 @@ static void ksu_defer_track_throne(void)
     track_throne(false);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
 static int ksu_handle_inode_event(struct fsnotify_mark *mark, u32 mask, struct inode *inode, struct inode *dir,
                                   const struct qstr *file_name, u32 cookie)
 {
@@ -71,6 +72,27 @@ static int ksu_handle_inode_event(struct fsnotify_mark *mark, u32 mask, struct i
 static const struct fsnotify_ops ksu_ops = {
     .handle_inode_event = ksu_handle_inode_event,
 };
+#else
+static int ksu_handle_event(struct fsnotify_group *group, struct inode *inode,
+                            struct fsnotify_mark *inode_mark, struct fsnotify_mark *vfsmount_mark,
+                            u32 mask, void *data, int data_type,
+                            const unsigned char *file_name, u32 cookie)
+{
+    if (!file_name)
+        return 0;
+    if (mask & FS_ISDIR)
+        return 0;
+    if (!strcmp(file_name, "packages.list")) {
+        pr_info("packages.list detected: %d\n", mask);
+        ksu_defer_track_throne();
+    }
+    return 0;
+}
+
+static const struct fsnotify_ops ksu_ops = {
+    .handle_event = ksu_handle_event,
+};
+#endif
 
 static int add_mark_on_inode(struct inode *inode, u32 mask, struct fsnotify_mark **out)
 {
@@ -80,6 +102,7 @@ static int add_mark_on_inode(struct inode *inode, u32 mask, struct fsnotify_mark
     if (!m)
         return -ENOMEM;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
     fsnotify_init_mark(m, g);
     m->mask = mask;
 
@@ -87,6 +110,15 @@ static int add_mark_on_inode(struct inode *inode, u32 mask, struct fsnotify_mark
         fsnotify_put_mark(m);
         return -EINVAL;
     }
+#else
+    fsnotify_init_mark(m, NULL);
+    m->mask = mask;
+
+    if (fsnotify_add_mark(m, g, inode, NULL, 0)) {
+        fsnotify_put_mark(m);
+        return -EINVAL;
+    }
+#endif
     *out = m;
     return 0;
 }

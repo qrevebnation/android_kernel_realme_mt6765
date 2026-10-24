@@ -72,20 +72,34 @@ void setup_ksu_cred(void)
 void setenforce(bool enforce)
 {
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
     selinux_state.enforcing = enforce;
+#else
+    selinux_enforcing = enforce;
+#endif
 #endif
 }
 
 bool getenforce(void)
 {
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
     if (selinux_state.disabled) {
         return false;
     }
+#else
+    if (!selinux_enabled) {
+        return false;
+    }
+#endif
 #endif
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
     return selinux_state.enforcing;
+#else
+    return selinux_enforcing;
+#endif
 #else
     return true;
 #endif
