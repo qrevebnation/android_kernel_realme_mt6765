@@ -1,5 +1,5 @@
 #include <linux/cache.h>
-#include <linux/compiler_types.h>
+#include <linux/compiler.h>
 
 #include "feature/sulog.h"
 #include "klog.h" // IWYU pragma: keep

@@ -1,7 +1,7 @@
 #ifndef __KSU_H_SULOG_EVENT
 #define __KSU_H_SULOG_EVENT
 
-#include <linux/compiler_types.h>
+#include <linux/compiler.h>
 #include <linux/gfp.h>
 #include <linux/types.h>
 #include "uapi/sulog.h" // IWYU pragma: keep
