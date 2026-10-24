@@ -503,6 +503,11 @@ static inline int is_vmalloc_or_module_addr(const void *x)
 #endif
 
 extern void kvfree(const void *addr);
+extern void *kvmalloc_node(size_t size, gfp_t flags, int node);
+extern void *kvmalloc(size_t size, gfp_t flags);
+extern void *kvzalloc(size_t size, gfp_t flags);
+extern void *kvmalloc_array(size_t n, size_t size, gfp_t flags);
+extern void *kvcalloc(size_t n, size_t size, gfp_t flags);
 
 static inline atomic_t *compound_mapcount_ptr(struct page *page)
 {

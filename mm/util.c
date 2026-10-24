@@ -357,6 +357,62 @@ void kvfree(const void *addr)
 }
 EXPORT_SYMBOL(kvfree);
 
+void *kvmalloc_node(size_t size, gfp_t flags, int node)
+{
+	gfp_t kmalloc_flags = flags;
+	void *ret;
+
+	/*
+	 * vmalloc uses GFP_KERNEL for allocations, so we can't satisfy
+	 * higher priorities, or allocations with other requirements.
+	 */
+	if ((flags & GFP_KERNEL) != GFP_KERNEL)
+		return kmalloc_node(size, flags, node);
+
+	if (size > PAGE_SIZE) {
+		kmalloc_flags |= __GFP_NOWARN | __GFP_NORETRY;
+	}
+
+	ret = kmalloc_node(size, kmalloc_flags, node);
+
+	/*
+	 * It doesn't make that much sense to fallback to vmalloc if we have
+	 * won't to fall back anyway.
+	 */
+	if (ret || size <= PAGE_SIZE)
+		return ret;
+
+	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
+			flags, PAGE_KERNEL, 0, node, __builtin_return_address(0));
+}
+EXPORT_SYMBOL(kvmalloc_node);
+
+void *kvmalloc(size_t size, gfp_t flags)
+{
+	return kvmalloc_node(size, flags, NUMA_NO_NODE);
+}
+EXPORT_SYMBOL(kvmalloc);
+
+void *kvzalloc(size_t size, gfp_t flags)
+{
+	return kvmalloc(size, flags | __GFP_ZERO);
+}
+EXPORT_SYMBOL(kvzalloc);
+
+void *kvmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	if (size != 0 && n > SIZE_MAX / size)
+		return NULL;
+	return kvmalloc(n * size, flags);
+}
+EXPORT_SYMBOL(kvmalloc_array);
+
+void *kvcalloc(size_t n, size_t size, gfp_t flags)
+{
+	return kvmalloc_array(n, size, flags | __GFP_ZERO);
+}
+EXPORT_SYMBOL(kvcalloc);
+
 static inline void *__page_rmapping(struct page *page)
 {
 	unsigned long mapping;

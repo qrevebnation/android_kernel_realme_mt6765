@@ -72,6 +72,12 @@ Karena KernelSU modern dirancang untuk GKI (Linux 5.10+ / 6.1+), modifikasi beri
 - Defconfig MT6765 menghasilkan `Image.gz-dtb` (`CONFIG_BUILD_ARM64_APPENDED_KERNEL_IMAGE_NAME="Image.gz-dtb"`).
 - CI menyalin `cp ~/out/arch/arm64/boot/Image* $ANYKERNEL/` sehingga AnyKernel3 dapat mengemas kernel zip dengan benar.
 
+### I. Simbol Linking Vmlinux (Link-Time Resolution untuk Linux 4.9)
+- **`path_umount`**: Di Linux 4.9 belum ada fungsi publik `path_umount()`. Diimplementasikan dan diekspor di [fs/namespace.c](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/fs/namespace.c) dan dideklarasikan di [include/linux/fs.h](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/include/linux/fs.h).
+- **`kvmalloc`, `kvzalloc`, `kvmalloc_array`, `kvcalloc`, `kvmalloc_node`**: Di Linux 4.9 hanya ada `kvfree()`. Rangkaian alokator memori ini diimplementasikan di [mm/util.c](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/mm/util.c), dideklarasikan di [include/linux/mm.h](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/include/linux/mm.h), dan diekspor via `EXPORT_SYMBOL()`.
+- **`__pte_to_phys` & `__pmd_to_phys`**: Di Linux 4.9 ARM64 makro ini didefinisikan sebagai `(pte_val(pte) & PHYS_MASK)` di [arch/arm64/include/asm/pgtable.h](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/arch/arm64/include/asm/pgtable.h) dan [drivers/kernelsu/hook/arm64/patch_memory.c](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/drivers/kernelsu/hook/arm64/patch_memory.c).
+- **`__flush_icache_range`**: Pada ARM64 Linux 4.9 fungsi aslinya adalah `flush_icache_range()`, dibuat alias di [arch/arm64/include/asm/cacheflush.h](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/arch/arm64/include/asm/cacheflush.h).
+
 ---
 
 ## 4. Konfigurasi Wajib Defconfig (`endfield_defconfig`)

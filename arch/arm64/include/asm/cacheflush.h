@@ -67,6 +67,9 @@
  */
 extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
 extern void flush_icache_range(unsigned long start, unsigned long end);
+#ifndef __flush_icache_range
+#define __flush_icache_range(start, end) flush_icache_range(start, end)
+#endif
 extern void __flush_dcache_area(void *addr, size_t len);
 extern void __clean_dcache_area_poc(void *addr, size_t len);
 extern void __clean_dcache_area_pou(void *addr, size_t len);

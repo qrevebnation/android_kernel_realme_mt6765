@@ -1702,10 +1702,34 @@ static inline bool may_mandlock(void)
  * unixes. Our API is identical to OSF/1 to avoid making a mess of AMD
  */
 
+int path_umount(struct path *path, int flags)
+{
+	struct mount *mnt = real_mount(path->mnt);
+	int retval;
+
+	retval = -EINVAL;
+	if (path->dentry != path->mnt->mnt_root)
+		goto dput_and_out;
+	if (!check_mnt(mnt))
+		goto dput_and_out;
+	if (mnt->mnt.mnt_flags & MNT_LOCKED) /* Check optimistically */
+		goto dput_and_out;
+	retval = -EPERM;
+	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
+		goto dput_and_out;
+
+	retval = do_umount(mnt, flags);
+dput_and_out:
+	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
+	dput(path->dentry);
+	mntput_no_expire(mnt);
+	return retval;
+}
+EXPORT_SYMBOL(path_umount);
+
 SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 {
 	struct path path;
-	struct mount *mnt;
 	int retval;
 	int lookup_flags = 0;
 
@@ -1720,26 +1744,9 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 
 	retval = user_path_mountpoint_at(AT_FDCWD, name, lookup_flags, &path);
 	if (retval)
-		goto out;
-	mnt = real_mount(path.mnt);
-	retval = -EINVAL;
-	if (path.dentry != path.mnt->mnt_root)
-		goto dput_and_out;
-	if (!check_mnt(mnt))
-		goto dput_and_out;
-	if (mnt->mnt.mnt_flags & MNT_LOCKED) /* Check optimistically */
-		goto dput_and_out;
-	retval = -EPERM;
-	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
-		goto dput_and_out;
+		return retval;
 
-	retval = do_umount(mnt, flags);
-dput_and_out:
-	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
-	dput(path.dentry);
-	mntput_no_expire(mnt);
-out:
-	return retval;
+	return path_umount(&path, flags);
 }
 
 #ifdef __ARCH_WANT_SYS_OLDUMOUNT

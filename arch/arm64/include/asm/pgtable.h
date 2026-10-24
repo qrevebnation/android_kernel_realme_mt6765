@@ -58,6 +58,12 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 #define pte_pfn(pte)		((pte_val(pte) & PHYS_MASK) >> PAGE_SHIFT)
 
+#ifndef __pte_to_phys
+#define __pte_to_phys(pte)	((phys_addr_t)(pte_val(pte) & PHYS_MASK))
+#define __pmd_to_phys(pmd)	__pte_to_phys(pmd_pte(pmd))
+#define __pud_to_phys(pud)	__pmd_to_phys(pud_pmd(pud))
+#endif
+
 #define pfn_pte(pfn,prot)	(__pte(((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot)))
 
 #define pte_none(pte)		(!pte_val(pte))

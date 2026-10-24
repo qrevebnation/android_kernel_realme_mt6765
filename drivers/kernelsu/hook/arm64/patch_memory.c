@@ -14,6 +14,16 @@
 #include "asm/cacheflush.h"
 #include "asm-generic/fixmap.h"
 
+#ifndef __pte_to_phys
+#define __pte_to_phys(pte) ((phys_addr_t)(pte_val(pte) & PHYS_MASK))
+#endif
+#ifndef __pmd_to_phys
+#define __pmd_to_phys(pmd) __pte_to_phys(pmd_pte(pmd))
+#endif
+#ifndef __flush_icache_range
+#define __flush_icache_range(start, end) flush_icache_range(start, end)
+#endif
+
 // https://github.com/fuqiuluo/ovo/blob/f7da411458e87d32438dc14fce5a3313ed0c967e/ovo/mmuhack.c#L21
 
 // Translate a kernel virtual address to a physical address by walking the
