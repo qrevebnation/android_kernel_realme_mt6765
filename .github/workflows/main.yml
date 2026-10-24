@@ -49,6 +49,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
@@ -119,9 +121,16 @@ jobs:
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v2
+      continue-on-error: true
       with:
         files: |
           kali-nethunter-kernel/anykernel3/*.zip
-        name: ${{ github.event.inputs.kernelsu_variant }}-${{ github.run_id }}
+        name: Endfield-${{ github.run_id }}
         tag_name: ${{ github.run_id }}
-        token: ${{ secrets.MY_TOKEN }}
+        token: ${{ secrets.MY_TOKEN || secrets.GITHUB_TOKEN }}
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Kernel-Zip
+        path: kali-nethunter-kernel/anykernel3/*.zip
