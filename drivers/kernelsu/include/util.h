@@ -35,11 +35,13 @@ static_assert(1 == 0, "Unsupported architecture!");
  * usage: ksyscall(close, fd);
  */
 #if defined(__aarch64__) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0))
-#define __ksyscall(name, a, b, c, d, e, f)                                                                             \
-    ({                                                                                                                 \
-        extern long sys_##name();                                                                                      \
-        (long)sys_##name(a, b, c, d, e, f);                                                                           \
-    })
+#define ksyscall_0(name) ((long)sys_##name())
+#define ksyscall_1(name, a) ((long)sys_##name(a))
+#define ksyscall_2(name, a, b) ((long)sys_##name(a, b))
+#define ksyscall_3(name, a, b, c) ((long)sys_##name(a, b, c))
+#define ksyscall_4(name, a, b, c, d) ((long)sys_##name(a, b, c, d))
+#define ksyscall_5(name, a, b, c, d, e) ((long)sys_##name(a, b, c, d, e))
+#define ksyscall_6(name, a, b, c, d, e, f) ((long)sys_##name(a, b, c, d, e, f))
 #else
 #define __ksyscall(name, a, b, c, d, e, f)                                                                             \
     ({                                                                                                                 \
@@ -53,7 +55,6 @@ static_assert(1 == 0, "Unsupported architecture!");
         PT_REGS_PARM6(&__ksu_regs) = (unsigned long)(f);                                                               \
         (long)KSU_SYS_PREFIX(name)(&__ksu_regs);                                                                       \
     })
-#endif
 
 // https://elixir.bootlin.com/musl/v1.2.6/source/src/internal/syscall.h#L45
 #define ksyscall_0(name) __ksyscall(name, 0, 0, 0, 0, 0, 0)
@@ -63,6 +64,7 @@ static_assert(1 == 0, "Unsupported architecture!");
 #define ksyscall_4(name, a, b, c, d) __ksyscall(name, a, b, c, d, 0, 0)
 #define ksyscall_5(name, a, b, c, d, e) __ksyscall(name, a, b, c, d, e, 0)
 #define ksyscall_6(name, a, b, c, d, e, f) __ksyscall(name, a, b, c, d, e, f)
+#endif
 
 #define __ksyscall_arg_n(_1, _2, _3, _4, _5, _6, _7, N, ...) N
 #define __ksyscall_count_args(...) __ksyscall_arg_n(__VA_ARGS__, 6, 5, 4, 3, 2, 1, 0)
