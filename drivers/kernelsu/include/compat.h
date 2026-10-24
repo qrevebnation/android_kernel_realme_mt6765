@@ -52,4 +52,30 @@ typedef unsigned int __poll_t;
 #define selinux_inode(inode) ((struct inode_security_struct *)(inode)->i_security)
 #endif
 
+#ifndef fallthrough
+#if defined(__has_attribute)
+#if __has_attribute(__fallthrough__)
+#define fallthrough __attribute__((__fallthrough__))
+#endif
+#endif
+#ifndef fallthrough
+#define fallthrough do {} while (0) /* fallthrough */
+#endif
+#endif
+
+#ifndef strscpy_pad
+static inline ssize_t strscpy_pad(char *dest, const char *src, size_t count)
+{
+    ssize_t written;
+
+    written = strscpy(dest, src, count);
+    if (written < 0)
+        return written;
+
+    memset(dest + written, 0, count - written);
+    return written;
+}
+#define strscpy_pad strscpy_pad
+#endif
+
 #endif /* __KSU_COMPAT_H */
