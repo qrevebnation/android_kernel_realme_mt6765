@@ -163,13 +163,13 @@ int kswapd_threads_current = DEF_KSWAPD_THREADS_PER_NODE;
 /*
  * From 0 .. 100.  Higher means more swappy.
  */
-int vm_swappiness = 60;
+int vm_swappiness = 100;
 
 #ifdef VENDOR_EDIT //yixue.ge@psw.bsp.kernel 20170720 add for add direct_vm_swappiness
 /*
- * Direct reclaim swappiness, exptct 0 - 60. Higher means more swappy and slower.
+ * Direct reclaim swappiness, expect 0 - 100. Higher means more swappy.
  */
-int direct_vm_swappiness = 60;
+int direct_vm_swappiness = 100;
 #endif
 
 /*

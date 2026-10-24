@@ -18,10 +18,19 @@ on:
         required: true
         default: 'endfield_defconfig'
         type: string
+      toolchain:
+        description: 'Pilih Toolchain Clang'
+        required: true
+        default: 'proton-clang'
+        type: choice
+        options:
+          - 'proton-clang'
+          - 'aosp-clang-14'
+          - 'clang-r383902'
       build_user:
         description: 'set user (xxx@host)'
         required: true
-        default: 'Frostleaft07'
+        default: 'qrevebnation'
         type: string
       build_host:
         description: 'set host (user@xxx)'
@@ -53,10 +62,25 @@ jobs:
         echo "Build Host: $KBUILD_BUILD_HOST"
         echo "DATE=$(date +%Y-%m-%d-%H-%M-%S)" >> $GITHUB_ENV
         git clone --depth=1 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 -b android10-release
-        wget https://android.googlesource.com/platform//prebuilts/clang/host/linux-x86/+archive/3857008389202edac32d57008bb8c99d2c957f9d/clang-r383902.tar.gz
-        mkdir clang
-        tar -xzf clang-r383902.tar.gz -C clang/
-        rm clang-r383902.tar.gz
+        
+        TOOLCHAIN="${{ github.event.inputs.toolchain }}"
+        if [ "$TOOLCHAIN" = "proton-clang" ]; then
+          echo "Cloning Proton-Clang (Optimized LLVM 13 with Polly)..."
+          git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
+        elif [ "$TOOLCHAIN" = "aosp-clang-14" ]; then
+          echo "Downloading AOSP Clang-14 (r450784d)..."
+          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master-kernel-build-2022/clang-r450784d.tar.gz
+          mkdir clang
+          tar -xzf clang-r450784d.tar.gz -C clang/
+          rm clang-r450784d.tar.gz
+        else
+          echo "Downloading AOSP Clang-11 (r383902)..."
+          wget https://android.googlesource.com/platform//prebuilts/clang/host/linux-x86/+archive/3857008389202edac32d57008bb8c99d2c957f9d/clang-r383902.tar.gz
+          mkdir clang
+          tar -xzf clang-r383902.tar.gz -C clang/
+          rm clang-r383902.tar.gz
+        fi
+
         echo "$GITHUB_WORKSPACE/clang/bin:$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin:/usr/bin:/bin" >> $GITHUB_PATH
         sed -i -E 's/\bpython2\b ?//g; s/  +/ /g' package
         bash package
