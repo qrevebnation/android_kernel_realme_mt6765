@@ -122,7 +122,7 @@ jobs:
     - name: anykernel ~ zipping
       run: |
          ANYKERNEL=$GITHUB_WORKSPACE/kali-nethunter-kernel/anykernel3
-         cp ~/out/arch/arm64/boot/Image.gz-dtb $ANYKERNEL/
+         cp ~/out/arch/arm64/boot/Image.gz $ANYKERNEL/
          ls -la $ANYKERNEL/
          
          # Copy modules to both vendor and system for 100% WiFi & BT compatibility
