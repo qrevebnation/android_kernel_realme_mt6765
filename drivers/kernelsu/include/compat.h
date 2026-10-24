@@ -40,4 +40,15 @@ static inline ssize_t ksu_kernel_read_compat(struct file *p, void *buf, size_t c
 #define TWA_RESUME true
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
+#ifndef __poll_t
+typedef unsigned int __poll_t;
+#define __poll_t __poll_t
+#endif
+#endif
+
+#ifndef selinux_inode
+#define selinux_inode(inode) ((struct inode_security_struct *)(inode)->i_security)
+#endif
+
 #endif /* __KSU_COMPAT_H */
