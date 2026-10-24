@@ -52,6 +52,10 @@ typedef unsigned int __poll_t;
 #define selinux_inode(inode) ((struct inode_security_struct *)(inode)->i_security)
 #endif
 
+#ifndef selinux_cred
+#define selinux_cred(cred) ((struct task_security_struct *)(cred)->security)
+#endif
+
 #ifndef fallthrough
 #if defined(__has_attribute)
 #if __has_attribute(__fallthrough__)
