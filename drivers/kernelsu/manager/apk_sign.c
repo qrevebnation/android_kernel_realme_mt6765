@@ -323,7 +323,11 @@ int get_pkg_from_apk_dir_path(char *pkg, const char *path)
     return 0;
 }
 
+#define SUKISU_EXPECTED_SIZE 0x35c
+#define SUKISU_EXPECTED_HASH "947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef"
+
 bool is_manager_apk(char *path)
 {
-    return check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH);
+    return check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH) ||
+           check_v2_signature(path, SUKISU_EXPECTED_SIZE, SUKISU_EXPECTED_HASH);
 }
