@@ -32,9 +32,11 @@ static inline long ksu_call_orig_syscall(int orig_nr, const struct pt_regs *regs
 #if defined(__aarch64__) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0))
     typedef asmlinkage long (*sys_call_6args_t)(unsigned long, unsigned long, unsigned long,
                                                 unsigned long, unsigned long, unsigned long);
-    return ((sys_call_6args_t)ksu_syscall_table[orig_nr])(
+    long ret = ((sys_call_6args_t)ksu_syscall_table[orig_nr])(
         regs->regs[0], regs->regs[1], regs->regs[2],
         regs->regs[3], regs->regs[4], regs->regs[5]);
+    pr_err("ksu_call_orig: nr=%d returned %ld\n", orig_nr, ret);
+    return ret;
 #else
     return ksu_syscall_table[orig_nr](regs);
 #endif

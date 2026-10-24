@@ -156,13 +156,22 @@ static long __nocfi ksu_syscall_dispatcher(unsigned long a0, unsigned long a1,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
     struct pt_regs *regs = task_pt_regs(current);
 #endif
-    if (regs->syscallno != ksu_dispatcher_nr)
-        return -ENOSYS;
-
     int orig_nr = (int)PT_REGS_ORIG_SYSCALL(regs);
 
-    if (regs->syscallno == orig_nr)
+    pr_err("ksu_disp: pid=%d comm=%s syscallno=%lld disp=%d orig_nr=%d\n",
+           current->pid, current->comm, regs->syscallno, ksu_dispatcher_nr, orig_nr);
+
+    if (regs->syscallno != ksu_dispatcher_nr) {
+        pr_err("ksu_disp: check 1 failed: syscallno %lld != disp %d\n",
+               regs->syscallno, ksu_dispatcher_nr);
         return -ENOSYS;
+    }
+
+    if (regs->syscallno == orig_nr) {
+        pr_err("ksu_disp: check 2 failed: syscallno %lld == orig_nr %d\n",
+               regs->syscallno, orig_nr);
+        return -ENOSYS;
+    }
 
     // Restore registers to original state before dispatching
     ((struct pt_regs *)regs)->syscallno = orig_nr;
@@ -170,8 +179,14 @@ static long __nocfi ksu_syscall_dispatcher(unsigned long a0, unsigned long a1,
 
     if (likely(orig_nr >= 0 && orig_nr < __NR_syscalls)) {
         ksu_syscall_hook_fn fn = READ_ONCE(syscall_hooks[orig_nr]);
-        if (likely(fn))
-            return fn(orig_nr, regs);
+        if (likely(fn)) {
+            long ret = fn(orig_nr, regs);
+            pr_err("ksu_disp: fn for orig_nr %d returned %ld\n", orig_nr, ret);
+            return ret;
+        }
+        pr_err("ksu_disp: check 3 failed: no fn for orig_nr %d\n", orig_nr);
+    } else {
+        pr_err("ksu_disp: check 4 failed: orig_nr %d out of bounds\n", orig_nr);
     }
 
     return -ENOSYS;

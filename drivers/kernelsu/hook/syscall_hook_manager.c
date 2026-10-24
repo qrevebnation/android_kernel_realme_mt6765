@@ -119,8 +119,16 @@ static void ksu_sys_enter_handler(void *data, struct pt_regs *regs, long id)
         current_regs->ax = id;
         current_regs->orig_ax = ksu_dispatcher_nr;
 #elif defined(__aarch64__)
-        PT_REGS_ORIG_SYSCALL(current_regs) = id;
-        current_regs->syscallno = ksu_dispatcher_nr;
+        pr_err("ksu_sys_enter: pid=%d comm=%s id=%ld -> disp=%d (regs=%p, cur_regs=%p)\n",
+               current->pid, current->comm, id, ksu_dispatcher_nr, regs, current_regs);
+        if (regs) {
+            PT_REGS_ORIG_SYSCALL(regs) = id;
+            regs->syscallno = ksu_dispatcher_nr;
+        }
+        if (current_regs) {
+            PT_REGS_ORIG_SYSCALL(current_regs) = id;
+            current_regs->syscallno = ksu_dispatcher_nr;
+        }
 #elif defined(__riscv)
         /* orig_a0 retains argument zero; a0 is the -ENOSYS return slot. */
         ksu_riscv_redirect_syscall(current_regs, id, ksu_dispatcher_nr);
