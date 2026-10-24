@@ -59,7 +59,8 @@ asmlinkage long sys_rt_sigreturn_wrapper(void);
  * The sys_call_table array must be 4K aligned to be accessible from
  * kernel/entry.S.
  */
-void * const sys_call_table[__NR_syscalls] __aligned(4096) = {
+void *sys_call_table[__NR_syscalls] __aligned(4096) = {
 	[0 ... __NR_syscalls - 1] = sys_ni_syscall,
 #include <asm/unistd.h>
 };
+EXPORT_SYMBOL(sys_call_table);

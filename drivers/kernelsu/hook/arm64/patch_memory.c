@@ -81,6 +81,11 @@ unsigned long phys_from_virt(unsigned long addr, int *err)
         pr_debug("Address 0x%lx maps to a PMD-level huge page\n", addr);
         return __pmd_to_phys(*pmd) + ((addr & ~PMD_MASK));
     }
+#elif defined(pmd_sect)
+    if (pmd_sect(*pmd)) {
+        pr_debug("Address 0x%lx maps to a PMD-level section\n", addr);
+        return (pmd_val(*pmd) & PHYS_MASK & (s32)PMD_MASK) + (addr & ~PMD_MASK);
+    }
 #endif
 
     if (pmd_none(*pmd) || pmd_bad(*pmd))
@@ -124,6 +129,7 @@ struct patch_text_info {
     size_t len;
     atomic_t cpu_count;
     int flags;
+    int ret;
 };
 
 // Implementation of arbitrary kernel address modification.
@@ -146,8 +152,6 @@ struct patch_text_info {
 // ^2: https://github.com/torvalds/linux/commit/c0eb315ad9719e41ce44708455cc69df7ac9f3f8
 static int ksu_patch_text_nosync(void *dst, void *src, size_t len, int flags)
 {
-    pr_debug("patch dst=0x%lx src=0x%lx len=%ld\n", (unsigned long)dst, (unsigned long)src, len);
-
     unsigned long p = (unsigned long)dst;
     int ret;
 
@@ -158,10 +162,10 @@ static int ksu_patch_text_nosync(void *dst, void *src, size_t len, int flags)
         pr_err("failed to find phy addr for patch dst addr 0x%lx\n", p);
         goto err;
     }
-    pr_debug("phy addr for patch 0x%lx: 0x%lx\n", p, phy);
+    pr_info("patch: phy addr for 0x%lx is 0x%lx\n", p, phy);
 
     void *map = set_fixmap_offset(FIX_TEXT_POKE0, phy);
-    pr_debug("fixmap addr for patch 0x%lx: 0x%lx\n", p, (unsigned long)map);
+    flush_tlb_kernel_range((unsigned long)map, (unsigned long)map + PAGE_SIZE);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
     ret = (int)copy_to_kernel_nofault(map, src, len);
@@ -169,17 +173,21 @@ static int ksu_patch_text_nosync(void *dst, void *src, size_t len, int flags)
     ret = (int)probe_kernel_write(map, src, len);
 #endif
 
+    if (!ret)
+        ksu_flush_dcache((uintptr_t)map, len);
+
     clear_fixmap(FIX_TEXT_POKE0);
+    flush_tlb_kernel_range((unsigned long)map, (unsigned long)map + PAGE_SIZE);
 
     if (!ret) {
         if (flags & KSU_PATCH_TEXT_FLUSH_ICACHE)
             ksu_flush_icache((uintptr_t)dst, (uintptr_t)dst + len);
         if (flags & KSU_PATCH_TEXT_FLUSH_DCACHE)
-            ksu_flush_dcache(dst, len);
+            ksu_flush_dcache((uintptr_t)dst, len);
     }
 
 err:
-    pr_debug("patch result=%d\n", ret);
+    pr_info("patch: dst=0x%lx result=%d\n", p, ret);
     return ret;
 }
 
@@ -190,11 +198,9 @@ static int ksu_patch_text_cb(void *arg)
     size_t len = pp->len;
     int flags = pp->flags;
 
-    int ret = 0;
-
     /* The last CPU becomes master */
     if (atomic_inc_return(&pp->cpu_count) == num_online_cpus()) {
-        ret = ksu_patch_text_nosync(dst, src, len, flags);
+        pp->ret = ksu_patch_text_nosync(dst, src, len, flags);
         /* Notify other processors with an additional increment. */
         atomic_inc(&pp->cpu_count);
     } else {
@@ -203,7 +209,7 @@ static int ksu_patch_text_cb(void *arg)
         isb();
     }
 
-    return ret;
+    return 0;
 }
 
 int ksu_patch_text(void *dst, void *src, size_t len, int flags)
@@ -214,9 +220,11 @@ int ksu_patch_text(void *dst, void *src, size_t len, int flags)
         .len = len,
         .cpu_count = ATOMIC_INIT(0),
         .flags = flags,
+        .ret = 0,
     };
 
-    return stop_machine(ksu_patch_text_cb, &info, cpu_online_mask);
+    int err = stop_machine(ksu_patch_text_cb, &info, cpu_online_mask);
+    return err ? err : info.ret;
 }
 
 /*

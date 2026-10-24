@@ -39,11 +39,11 @@ static int patch_syscall_table(int nr, syscall_fn_t fn)
     pr_info("patch syscall %d, 0x%lx -> 0x%lx\n", nr, (unsigned long)READ_ONCE(ksu_syscall_table[nr]),
             (unsigned long)fn);
 
-    if (ksu_patch_text(&ksu_syscall_table[nr], &fn, sizeof(fn), KSU_PATCH_TEXT_FLUSH_DCACHE)) {
-        pr_err("patch syscall %d failed\n", nr);
-        return -EIO;
-    }
+    WRITE_ONCE(ksu_syscall_table[nr], fn);
+    smp_mb();
+    __flush_dcache_area((void *)&ksu_syscall_table[nr], sizeof(fn));
 
+    pr_info("patch syscall %d verified: 0x%lx\n", nr, (unsigned long)READ_ONCE(ksu_syscall_table[nr]));
     return 0;
 }
 
@@ -224,13 +224,17 @@ bool ksu_has_syscall_hook(int nr)
     return READ_ONCE(syscall_hooks[nr]) != NULL;
 }
 
+extern void *sys_call_table[];
+
 void __init ksu_syscall_hook_init(void)
 {
     int ni_slot;
 
     memset(syscall_hooks, 0, sizeof(syscall_hooks));
 
-    ksu_syscall_table = (syscall_fn_t *)ksu_resolve_symbol_for_functable_hook("sys_call_table");
+    ksu_syscall_table = (syscall_fn_t *)sys_call_table;
+    if (!ksu_syscall_table)
+        ksu_syscall_table = (syscall_fn_t *)ksu_resolve_symbol_for_functable_hook("sys_call_table");
     pr_info("sys_call_table=0x%lx", (unsigned long)ksu_syscall_table);
 
     if (!ksu_syscall_table)
@@ -262,9 +266,9 @@ void __exit ksu_syscall_hook_exit(void)
         syscall_fn_t orig = hooked_entries[i].orig;
 
         pr_info("restore syscall %d to 0x%lx\n", nr, (unsigned long)orig);
-        if (ksu_patch_text(&ksu_syscall_table[nr], &orig, sizeof(orig), KSU_PATCH_TEXT_FLUSH_DCACHE)) {
-            pr_err("restore syscall %d failed\n", nr);
-        }
+        WRITE_ONCE(ksu_syscall_table[nr], orig);
+        smp_mb();
+        __flush_dcache_area((void *)&ksu_syscall_table[nr], sizeof(orig));
     }
     hooked_count = 0;
     mutex_unlock(&hooked_entries_lock);
