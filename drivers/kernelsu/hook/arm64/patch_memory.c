@@ -12,6 +12,7 @@
 #include "linux/uaccess.h"
 #include "linux/stop_machine.h"
 #include "asm/cacheflush.h"
+#include <asm/tlbflush.h>
 #include "asm-generic/fixmap.h"
 
 #ifndef __pte_to_phys

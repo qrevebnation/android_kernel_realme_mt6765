@@ -99,6 +99,7 @@ jobs:
 
     - name: Build Kernel
       run: |
+        set -eo pipefail
         make CC=clang ARCH=arm64 O=~/out ${{ github.event.inputs.defconfig || 'endfield_defconfig' }}
         make CC=clang ARCH=arm64 O=~/out olddefconfig
         make CC=clang ARCH=arm64 O=~/out -j$(nproc) \

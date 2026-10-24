@@ -24,6 +24,7 @@
 
 #include <linux/compiler.h>
 #include <linux/syscalls.h>
+#include <linux/export.h>
 
 asmlinkage long compat_sys_sigreturn_wrapper(void);
 asmlinkage long compat_sys_rt_sigreturn_wrapper(void);
