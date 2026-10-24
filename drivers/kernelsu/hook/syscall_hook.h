@@ -2,10 +2,18 @@
 #define __KSU_H_KSU_SYSCALL_HOOK
 #include <asm/syscall.h>
 
+#include <linux/version.h>
+
 #if defined(__x86_64__)
 typedef sys_call_ptr_t syscall_fn_t;
-#elif defined(__riscv) || defined(__aarch64__)
+#elif defined(__riscv)
 typedef long (*syscall_fn_t)(const struct pt_regs *);
+#elif defined(__aarch64__)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
+typedef long (*syscall_fn_t)(const struct pt_regs *);
+#else
+typedef void *syscall_fn_t;
+#endif
 #endif
 
 extern syscall_fn_t *ksu_syscall_table;
@@ -16,8 +24,21 @@ extern int ksu_dispatcher_nr;
 // Syscall hook handler type.
 // orig_nr: the original syscall number before redirection
 // regs: the original pt_regs from userspace
-// Handler is responsible for calling ksu_syscall_table[orig_nr](regs) if needed.
+// Handler is responsible for calling ksu_call_orig_syscall(orig_nr, regs) if needed.
 typedef long (*ksu_syscall_hook_fn)(int orig_nr, const struct pt_regs *regs);
+
+static inline long ksu_call_orig_syscall(int orig_nr, const struct pt_regs *regs)
+{
+#if defined(__aarch64__) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0))
+    typedef asmlinkage long (*sys_call_6args_t)(unsigned long, unsigned long, unsigned long,
+                                                unsigned long, unsigned long, unsigned long);
+    return ((sys_call_6args_t)ksu_syscall_table[orig_nr])(
+        regs->regs[0], regs->regs[1], regs->regs[2],
+        regs->regs[3], regs->regs[4], regs->regs[5]);
+#else
+    return ksu_syscall_table[orig_nr](regs);
+#endif
+}
 
 // --- Dispatcher-based hook API (register/unregister) ---
 // Register a handler into the dispatcher's routing table for syscall @nr.

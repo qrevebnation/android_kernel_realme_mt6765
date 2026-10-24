@@ -567,6 +567,52 @@ void ksu_execveat_hook_ksud(const struct pt_regs *regs)
     ksu_execve_hook_ksud_common(filename_user, argv_user);
 }
 
+#if defined(__aarch64__) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0))
+static asmlinkage long (*orig_sys_read)(unsigned int fd, char __user *buf, size_t count);
+static asmlinkage long ksu_sys_read(unsigned int fd, char __user *buf, size_t count)
+{
+    ksu_handle_sys_read(fd, &buf, &count);
+    return orig_sys_read(fd, buf, count);
+}
+
+static asmlinkage long (*orig_sys_fstat)(unsigned int fd, struct stat __user *statbuf);
+static asmlinkage long ksu_sys_fstat(unsigned int fd, struct stat __user *statbuf)
+{
+    bool is_rc = false;
+    long ret;
+
+    struct file *file = fget(fd);
+    if (file) {
+        if (is_init_rc(file)) {
+            pr_info("stat init.rc\n");
+            is_rc = true;
+            load_module_rc_once();
+        }
+        fput(file);
+    }
+
+    ret = orig_sys_fstat(fd, statbuf);
+
+    if (is_rc) {
+        void __user *st_size_ptr = (void __user *)statbuf + offsetof(struct stat, st_size);
+        long size, new_size;
+        size_t extra = ksu_rc_len + module_rc_len;
+        if (!copy_from_user_nofault(&size, st_size_ptr, sizeof(long))) {
+            new_size = size + extra;
+            pr_info("adding rc len: %ld -> %ld (static=%zu module=%zu)\n", size, new_size, ksu_rc_len, module_rc_len);
+            if (!copy_to_user_nofault(st_size_ptr, &new_size, sizeof(long))) {
+                pr_info("added rc len\n");
+            } else {
+                pr_err("add rc len failed: statbuf 0x%lx\n", (unsigned long)st_size_ptr);
+            }
+        } else {
+            pr_err("read statbuf 0x%lx failed\n", (unsigned long)st_size_ptr);
+        }
+    }
+
+    return ret;
+}
+#else
 static long (*orig_sys_read)(const struct pt_regs *regs);
 static long ksu_sys_read(const struct pt_regs *regs)
 {
@@ -617,6 +663,7 @@ static long ksu_sys_fstat(const struct pt_regs *regs)
 
     return ret;
 }
+#endif
 
 static int input_handle_event_handler_pre(struct kprobe *p, struct pt_regs *regs)
 {
@@ -659,8 +706,8 @@ void __init ksu_ksud_init()
 {
     int ret;
 
-    ksu_syscall_table_hook(__NR_read, ksu_sys_read, &orig_sys_read);
-    ksu_syscall_table_hook(__NR_fstat, ksu_sys_fstat, &orig_sys_fstat);
+    ksu_syscall_table_hook(__NR_read, (syscall_fn_t)ksu_sys_read, (syscall_fn_t *)&orig_sys_read);
+    ksu_syscall_table_hook(__NR_fstat, (syscall_fn_t)ksu_sys_fstat, (syscall_fn_t *)&orig_sys_fstat);
 
     ret = register_kprobe(&input_event_kp);
     pr_info("ksud: input_event_kp: %d\n", ret);
