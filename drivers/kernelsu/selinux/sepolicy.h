@@ -5,9 +5,13 @@
 
 #include "ss/policydb.h"
 
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
 struct selinux_policy *ksu_dup_sepolicy(struct selinux_policy *old_pol);
 
 void ksu_destroy_sepolicy(struct selinux_policy *orig);
+#endif
 
 // Operation on types
 bool ksu_type(struct policydb *db, const char *name, const char *attr);

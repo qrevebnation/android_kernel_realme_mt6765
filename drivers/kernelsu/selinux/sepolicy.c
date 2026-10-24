@@ -14,6 +14,37 @@
 #include "klog.h" // IWYU pragma: keep
 #include "ss/symtab.h"
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0)
+#include <linux/flex_array.h>
+static inline int ksu_flex_array_put_ptr(struct flex_array **fa_ptr, unsigned int nr, void *src, gfp_t flags)
+{
+    struct flex_array *fa = *fa_ptr;
+    if (!fa) {
+        fa = flex_array_alloc(sizeof(void *), nr + 64, flags);
+        if (!fa)
+            return -ENOMEM;
+        flex_array_prealloc(fa, 0, nr + 64, flags);
+        *fa_ptr = fa;
+    } else if (nr >= fa->total_nr_elements) {
+        int new_total = nr + 64;
+        struct flex_array *new_fa = flex_array_alloc(fa->element_size, new_total, flags);
+        if (!new_fa)
+            return -ENOMEM;
+        flex_array_prealloc(new_fa, 0, new_total, flags);
+        unsigned int idx;
+        for (idx = 0; idx < fa->total_nr_elements; idx++) {
+            void *p = flex_array_get_ptr(fa, idx);
+            if (p)
+                flex_array_put_ptr(new_fa, idx, p, flags);
+        }
+        flex_array_free(fa);
+        *fa_ptr = new_fa;
+        fa = new_fa;
+    }
+    return flex_array_put_ptr(fa, nr, src, flags);
+}
+#endif
+
 #define KSU_SUPPORT_ADD_TYPE
 
 //////////////////////////////////////////////////////
@@ -81,7 +112,14 @@ static bool add_typeattribute(struct policydb *db, const char *type, const char 
 #define symtab_insert(s, name, datum) hashtab_insert((s)->table, name, datum)
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
 #define avtab_for_each(avtab, cur) ksu_hash_for_each(avtab.htable, avtab.nslot, cur)
+#else
+#define avtab_for_each(avtab, cur)                                                             \
+    int i;                                                                                     \
+    for (i = 0; i < (avtab).nslot; ++i)                                                        \
+        for (cur = (struct avtab_node *)flex_array_get_ptr((avtab).htable, i); cur; cur = cur->next)
+#endif
 
 static struct avtab_node *get_avtab_node(struct policydb *db, struct avtab_key *key,
                                          struct avtab_extended_perms *xperms)
@@ -163,14 +201,23 @@ static bool remove_avtab_node(struct policydb *db, struct avtab_node *node)
 
     for (i = 0; i < db->te_avtab.nslot; i++) {
         prev = NULL;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
         for (n = db->te_avtab.htable[i]; n; prev = n, n = n->next) {
+#else
+        for (n = (struct avtab_node *)flex_array_get_ptr(db->te_avtab.htable, i); n; prev = n, n = n->next) {
+#endif
             if (n != node)
                 continue;
 
             if (prev)
                 prev->next = n->next;
-            else
+            else {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
                 db->te_avtab.htable[i] = n->next;
+#else
+                flex_array_put_ptr(db->te_avtab.htable, i, n->next, GFP_KERNEL | __GFP_ZERO);
+#endif
+            }
 
             if (db->te_avtab.nel > 0)
                 db->te_avtab.nel--;
@@ -183,7 +230,11 @@ static bool remove_avtab_node(struct policydb *db, struct avtab_node *node)
                 // data is u32
                 shrink_size += sizeof(n->datum.u.data);
             n->next = NULL;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
             removed.htable[0] = n;
+#else
+            flex_array_put_ptr(removed.htable, 0, n, GFP_KERNEL | __GFP_ZERO);
+#endif
             removed.nel = 1;
             avtab_destroy(&removed);
             if (db->len >= shrink_size)
@@ -567,6 +618,56 @@ static bool add_filename_trans(struct policydb *db, const char *s, const char *t
         return false;
     }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 7, 0)
+    struct filename_trans ft;
+    struct filename_trans *new_ft;
+    struct filename_trans_datum *trans;
+
+    ft.stype = src->value;
+    ft.ttype = tgt->value;
+    ft.tclass = cls->value;
+    ft.name = (char *)o;
+
+    trans = hashtab_search(db->filename_trans, &ft);
+    if (trans) {
+        trans->otype = def->value;
+        return true;
+    }
+
+    trans = (struct filename_trans_datum *)kzalloc(sizeof(*trans), GFP_KERNEL);
+    if (!trans) {
+        pr_err("add_filename_trans: alloc filename_trans_datum failed\n");
+        return false;
+    }
+    trans->otype = def->value;
+
+    new_ft = (struct filename_trans *)kzalloc(sizeof(*new_ft), GFP_KERNEL);
+    if (!new_ft) {
+        pr_err("add_filename_trans: alloc filename_trans failed\n");
+        kfree(trans);
+        return false;
+    }
+    *new_ft = ft;
+    new_ft->name = kstrdup(ft.name, GFP_KERNEL);
+    if (!new_ft->name) {
+        pr_err("add_filename_trans: kstrdup name failed\n");
+        kfree(new_ft);
+        kfree(trans);
+        return false;
+    }
+
+    rc = hashtab_insert(db->filename_trans, new_ft, trans);
+    if (rc) {
+        pr_err("add_filename_trans: hashtab_insert failed: %d\n", rc);
+        kfree(new_ft->name);
+        kfree(new_ft);
+        kfree(trans);
+        return false;
+    }
+
+    ebitmap_set_bit(&db->filename_trans_ttypes, tgt->value, 1);
+    return true;
+#else
     struct filename_trans_key key;
     key.ttype = tgt->value;
     key.tclass = cls->value;
@@ -624,6 +725,7 @@ free_trans:
     kfree(trans);
 out:
     return false;
+#endif
 }
 
 static bool add_genfscon(struct policydb *db, const char *fs_name, const char *path, const char *context)
@@ -694,6 +796,7 @@ static bool add_type(struct policydb *db, const char *type_name, bool attr)
         return false;
     }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
     struct type_datum **new_type_val_to_struct = ksu_kvrealloc(
         db->type_val_to_struct, sizeof(*db->type_val_to_struct) * value, sizeof(*db->type_val_to_struct) * (value - 1));
 
@@ -718,6 +821,21 @@ static bool add_type(struct policydb *db, const char *type_name, bool attr)
 
     db->sym_val_to_name[SYM_TYPES] = new_val_to_name_types;
     db->sym_val_to_name[SYM_TYPES][value - 1] = key;
+#else
+    db->type_attr_map_array = new_type_attr_map_array;
+    ebitmap_init(&db->type_attr_map_array[value - 1]);
+    ebitmap_set_bit(&db->type_attr_map_array[value - 1], value - 1, 1);
+
+    if (ksu_flex_array_put_ptr(&db->type_val_to_struct_array, value - 1, type, GFP_KERNEL | __GFP_ZERO)) {
+        pr_err("add_type: put type_val_to_struct_array failed\n");
+        return false;
+    }
+
+    if (ksu_flex_array_put_ptr(&db->sym_val_to_name[SYM_TYPES], value - 1, key, GFP_KERNEL | __GFP_ZERO)) {
+        pr_err("add_type: put sym_val_to_name failed\n");
+        return false;
+    }
+#endif
 
     int i;
     for (i = 0; i < db->p_roles.nprim; ++i) {
@@ -893,6 +1011,7 @@ bool ksu_genfscon(struct policydb *db, const char *fs_name, const char *path, co
     return add_genfscon(db, fs_name, path, ctx);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
 // ======== sepolicy ========
 
 void ksu_destroy_sepolicy(struct selinux_policy *pol)
@@ -980,3 +1099,4 @@ out_free_data:
 
     return ERR_PTR(ret);
 }
+#endif

@@ -82,4 +82,30 @@ static inline ssize_t strscpy_pad(char *dest, const char *src, size_t count)
 #define strscpy_pad strscpy_pad
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+#include <linux/vmalloc.h>
+#include <linux/mm.h>
+#ifndef kvmalloc
+static inline void *kvmalloc(size_t size, gfp_t flags)
+{
+    void *ret = kmalloc(size, flags | __GFP_NOWARN);
+    if (!ret)
+        ret = vmalloc(size);
+    return ret;
+}
+#define kvmalloc kvmalloc
+#endif
+
+#ifndef kvfree
+static inline void kvfree(const void *addr)
+{
+    if (is_vmalloc_addr(addr))
+        vfree(addr);
+    else
+        kfree(addr);
+}
+#define kvfree kvfree
+#endif
+#endif
+
 #endif /* __KSU_COMPAT_H */
