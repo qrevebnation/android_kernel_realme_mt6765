@@ -3,6 +3,7 @@
 #include <linux/mutex.h>
 #include <linux/overflow.h>
 #include <linux/poll.h>
+#include <uapi/linux/eventpoll.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>

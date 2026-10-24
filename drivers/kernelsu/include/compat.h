@@ -6,6 +6,7 @@
 #include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/types.h>
+#include <uapi/linux/eventpoll.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
 #ifndef strncpy_from_user_nofault
