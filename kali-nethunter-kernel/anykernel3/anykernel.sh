@@ -6,10 +6,10 @@
 ## AnyKernel setup
 # begin properties
 properties() { '
-kernel.string=NetHunter Kernel
+kernel.string=Endfield Kernel 🪐
 do.devicecheck=1
 do.modules=1
-do.systemless=0 #Never use this for NetHunter kernels as it prevents us from writing to /lib/modules
+do.systemless=1
 do.cleanup=1
 do.cleanuponabort=0
 device.name1=RMX2180

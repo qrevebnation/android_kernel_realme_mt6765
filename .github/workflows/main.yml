@@ -110,16 +110,47 @@ jobs:
           STRIP=llvm-strip \
           READELF=llvm-readelf \
           CROSS_COMPILE=aarch64-linux-android- \
-          CLANG_TRIPLE=aarch64-linux-gnu-
+          CLANG_TRIPLE=aarch64-linux-gnu- 2>&1 | tee ~/build.log
+
+    - name: Upload Build Log on Failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-failure-log
+        path: ~/build.log
 
     - name: anykernel ~ zipping
       run: |
          ANYKERNEL=$GITHUB_WORKSPACE/kali-nethunter-kernel/anykernel3
-         mv ~/out/arch/arm64/boot/Image.gz $ANYKERNEL
+         mv ~/out/arch/arm64/boot/Image.gz $ANYKERNEL/
+         
+         # Copy modules to both vendor and system for 100% WiFi & BT compatibility
+         mkdir -p $ANYKERNEL/modules/vendor/lib/modules
          mkdir -p $ANYKERNEL/modules/system/lib/modules
-         find ~/out -name "*.ko" -exec mv {} $ANYKERNEL/modules/system/lib/modules/ \;
+         find ~/out -name "*.ko" -exec cp {} $ANYKERNEL/modules/vendor/lib/modules/ \;
+         find ~/out -name "*.ko" -exec cp {} $ANYKERNEL/modules/system/lib/modules/ \;
+         
+         # Build Standalone Magisk WiFi & BT Module as backup
+         MAGISK_DIR=$GITHUB_WORKSPACE/wifi_bt_magisk
+         mkdir -p $MAGISK_DIR/system/vendor/lib/modules
+         mkdir -p $MAGISK_DIR/system/lib/modules
+         find ~/out -name "*.ko" -exec cp {} $MAGISK_DIR/system/vendor/lib/modules/ \;
+         find ~/out -name "*.ko" -exec cp {} $MAGISK_DIR/system/lib/modules/ \;
+         cat << 'EOF' > $MAGISK_DIR/module.prop
+id=endfield_wifi_bt_fix
+name=Endfield Kernel WiFi & BT Fix
+version=1.0
+versionCode=1
+author=qrevebnation
+description=Overlay kernel modules to fix WiFi and Bluetooth for Realme MT6765 on custom ROMs
+EOF
+         cd $MAGISK_DIR
+         zip -r9 $ANYKERNEL/WiFi-BT-Fix-Magisk.zip *
+         
+         # Package AnyKernel3 Zip
          cd $ANYKERNEL
-         zip -r9 $ZIP *
+         ZIP_NAME="Endfield-Kernel-Realme-MT6765-${{ github.run_id }}.zip"
+         zip -r9 "$ZIP_NAME" * -x "WiFi-BT-Fix-Magisk.zip"
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v2
@@ -134,5 +165,5 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Kernel-Zip
+        name: Kernel-And-WiFi-Fix
         path: kali-nethunter-kernel/anykernel3/*.zip
