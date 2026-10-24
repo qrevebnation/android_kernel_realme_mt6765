@@ -136,14 +136,7 @@ jobs:
          mkdir -p $MAGISK_DIR/system/lib/modules
          find ~/out -name "*.ko" -exec cp {} $MAGISK_DIR/system/vendor/lib/modules/ \;
          find ~/out -name "*.ko" -exec cp {} $MAGISK_DIR/system/lib/modules/ \;
-         cat << 'EOF' > $MAGISK_DIR/module.prop
-id=endfield_wifi_bt_fix
-name=Endfield Kernel WiFi & BT Fix
-version=1.0
-versionCode=1
-author=qrevebnation
-description=Overlay kernel modules to fix WiFi and Bluetooth for Realme MT6765 on custom ROMs
-EOF
+         printf "id=endfield_wifi_bt_fix\nname=Endfield Kernel WiFi and BT Fix\nversion=1.0\nversionCode=1\nauthor=qrevebnation\ndescription=Overlay kernel modules to fix WiFi and Bluetooth for Realme MT6765 on custom ROMs\n" > $MAGISK_DIR/module.prop
          cd $MAGISK_DIR
          zip -r9 $ANYKERNEL/WiFi-BT-Fix-Magisk.zip *
          
