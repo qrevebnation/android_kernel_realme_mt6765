@@ -3660,13 +3660,6 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
  * past. prev == current is still correct but we need to recalculate this_rq
  * because prev may have moved to another CPU.
  */
-static void mmdrop_async_free(struct work_struct *work)
-{
-	struct mm_struct *mm = container_of(work, typeof(*mm), async_put_work);
-
-	__mmdrop(mm);
-}
-
 static struct rq *finish_task_switch(struct task_struct *prev)
 	__releases(rq->lock)
 {
@@ -3710,10 +3703,8 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 	finish_arch_post_lock_switch();
 
 	fire_sched_in_preempt_notifiers(current);
-	if (mm && atomic_dec_and_test(&mm->mm_count)) {
-		INIT_WORK(&mm->async_put_work, mmdrop_async_free);
-		queue_work(system_unbound_wq, &mm->async_put_work);
-	}
+	if (mm)
+		mmdrop(mm);
 	if (unlikely(prev_state == TASK_DEAD)) {
 		if (prev->sched_class->task_dead)
 			prev->sched_class->task_dead(prev);

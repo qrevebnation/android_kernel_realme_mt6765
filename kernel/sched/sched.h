@@ -1268,10 +1268,8 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
  */
 #ifdef CONFIG_SCHED_DEBUG
 # include <linux/static_key.h>
-# define const_debug __read_mostly
-#else
-# define const_debug const
 #endif
+#define const_debug __read_mostly
 
 extern const_debug unsigned int sysctl_sched_features;
 
