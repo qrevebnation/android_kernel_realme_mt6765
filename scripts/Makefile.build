@@ -499,7 +499,7 @@ else
 endif
 
 # If the list of objects to link is empty, just create an empty built-in.o
-cmd_link_o_target = $(if $(strip $(obj-y)),\
+cmd_link_o_target = $(if $(strip $(filter $(obj-y), $^)),\
 		      $(cmd_make_builtin) $@ $(filter $(obj-y), $^) \
 		      $(cmd_secanalysis),\
 		      $(cmd_make_empty_builtin) $@)
