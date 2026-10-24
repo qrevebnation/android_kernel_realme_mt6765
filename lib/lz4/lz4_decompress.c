@@ -338,6 +338,18 @@ exit_0:
 #ifndef STATIC
 EXPORT_SYMBOL(lz4_decompress_unknownoutputsize);
 
+int LZ4_decompress_safe(const char *source, char *dest, int compressedSize, int maxDecompressedSize)
+{
+	return lz4_uncompress_unknownoutputsize(source, dest, compressedSize, maxDecompressedSize);
+}
+EXPORT_SYMBOL(LZ4_decompress_safe);
+
+int LZ4_decompress_safe_partial(const char *source, char *dest, int compressedSize, int targetOutputSize, int maxDecompressedSize)
+{
+	return lz4_uncompress_unknownoutputsize(source, dest, compressedSize, maxDecompressedSize);
+}
+EXPORT_SYMBOL(LZ4_decompress_safe_partial);
+
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("LZ4 Decompressor");
 #endif

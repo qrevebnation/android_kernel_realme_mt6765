@@ -84,4 +84,8 @@ int lz4_decompress(const unsigned char *src, size_t *src_len,
  */
 int lz4_decompress_unknownoutputsize(const unsigned char *src, size_t src_len,
 		unsigned char *dest, size_t *dest_len);
+
+int LZ4_decompress_safe(const char *source, char *dest, int compressedSize, int maxDecompressedSize);
+int LZ4_decompress_safe_partial(const char *source, char *dest, int compressedSize, int targetOutputSize, int maxDecompressedSize);
+
 #endif
