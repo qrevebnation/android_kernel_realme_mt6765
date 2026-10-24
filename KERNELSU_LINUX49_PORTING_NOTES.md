@@ -78,6 +78,11 @@ Karena KernelSU modern dirancang untuk GKI (Linux 5.10+ / 6.1+), modifikasi beri
 - **`__pte_to_phys` & `__pmd_to_phys`**: Di Linux 4.9 ARM64 makro ini didefinisikan sebagai `(pte_val(pte) & PHYS_MASK)` di [arch/arm64/include/asm/pgtable.h](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/arch/arm64/include/asm/pgtable.h) dan [drivers/kernelsu/hook/arm64/patch_memory.c](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/drivers/kernelsu/hook/arm64/patch_memory.c).
 - **`__flush_icache_range`**: Pada ARM64 Linux 4.9 fungsi aslinya adalah `flush_icache_range()`, dibuat alias di [arch/arm64/include/asm/cacheflush.h](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/arch/arm64/include/asm/cacheflush.h).
 
+### J. Penanganan Bootloop Kretprobe Trampoline (Crash Log Pstore Analysis)
+- **Gejala**: Kernel panic `Internal error: undefined instruction: 0` pada `kretprobe_trampoline+0x0/0xd0` saat memanggil `register_trace_prio_sys_enter()` di awal boot.
+- **Penyebab**: KernelSU v30000 memasang kretprobe di `syscall_regfunc` dan `syscall_unregfunc`. Pada arsitektur ARM64 Linux 4.9 kernel lama, mekanisme kretprobe trampoline belum mendukung intercept return address pada fungsi init tracepoint secara stabil, menyebabkan PC melompat ke alamat invalid.
+- **Solusi**: Di [drivers/kernelsu/hook/syscall_hook_manager.c](file:///home/mnrrochman/Documents/project-kernel/android_kernel_realme_mt6765/drivers/kernelsu/hook/syscall_hook_manager.c), kretprobe pada `syscall_regfunc` dibatasi hanya untuk kernel `>= 4.19`. Pada Linux 4.9, KernelSU secara otomatis menggunakan fallback native `ksu_mark_running_process_locked()`, sehingga boot langsung mulus tanpa panic.
+
 ---
 
 ## 4. Konfigurasi Wajib Defconfig (`endfield_defconfig`)

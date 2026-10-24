@@ -23,7 +23,11 @@
 #include "hook/riscv64/syscall_regs.h"
 #endif
 
-#ifdef CONFIG_KRETPROBES
+#if defined(CONFIG_KRETPROBES) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
+#define KSU_HAS_KRETPROBES 1
+#endif
+
+#ifdef KSU_HAS_KRETPROBES
 
 static struct kretprobe *init_kretprobe(const char *name, kretprobe_handler_t handler)
 {
@@ -130,7 +134,7 @@ void __init ksu_syscall_hook_manager_init(void)
     int ret;
     pr_info("hook_manager: ksu_hook_manager_init called\n");
 
-#ifdef CONFIG_KRETPROBES
+#ifdef KSU_HAS_KRETPROBES
     syscall_regfunc_rp = init_kretprobe("syscall_regfunc", syscall_regfunc_handler);
     syscall_unregfunc_rp = init_kretprobe("syscall_unregfunc", syscall_unregfunc_handler);
 #endif
@@ -144,7 +148,7 @@ void __init ksu_syscall_hook_manager_init(void)
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
     ret = register_trace_prio_sys_enter(ksu_sys_enter_handler, NULL, INT_MIN);
-#ifndef CONFIG_KRETPROBES
+#ifndef KSU_HAS_KRETPROBES
     ksu_mark_running_process_locked();
 #endif
     if (ret) {
@@ -167,7 +171,7 @@ void __exit ksu_syscall_hook_manager_exit(void)
     pr_info("hook_manager: sys_enter tracepoint unregistered\n");
 #endif
 
-#ifdef CONFIG_KRETPROBES
+#ifdef KSU_HAS_KRETPROBES
     destroy_kretprobe(&syscall_regfunc_rp);
     destroy_kretprobe(&syscall_unregfunc_rp);
 #endif
