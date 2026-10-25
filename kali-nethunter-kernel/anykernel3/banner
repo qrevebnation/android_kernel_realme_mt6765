@@ -1,17 +1,20 @@
-  _____________________________________________
- /                                             \
-|          ENDFIELD KERNEL - REALME C15         |
- \_____________________________________________/
+  _____________________________________________________________
+ /                                                             \
+|                 ENDFIELD KERNEL - REALME C15                  |
+ \_____________________________________________________________/
 
-  Special Thanks & Deepest Gratitude to:
-  * @techyminati  (Initial Source & Karashi Tree)
-  * @dodyirawan85 (MT6765 Core Contributor)
-  * @Frostleaft07 (Upstream Parent & NetHunter)
+  Heartfelt Gratitude & Special Honors:
+  * @techyminati  - Pioneer of the initial source & Karashi tree
+  * @dodyirawan85 - Dedicated MT6765 development & core fixes
+  * @Frostleaft07 - Upstream maintainer & NetHunter integration
 
-  Terima kasih telah berdedikasi membangun fondasi
-  device tree dan kernel ini, sehingga perangkat
-  Realme C15 (MT6765) tetap hidup dan bertenaga
-  dari awal rilis hingga hari ini!
+  Our deepest appreciation to every developer, tester, and
+  community member who poured their time and passion into
+  building this foundation.
 
-  "Dedicated to MT6765 Community & Open Source"
-  -------------------------------------------------
+  Because of your dedication and tireless contributions,
+  the Realme C15 (MT6765) continues to thrive, evolve,
+  and stay alive from its original release to this very day!
+
+  "Crafted with pride, powered by the open source community."
+  -------------------------------------------------------------
