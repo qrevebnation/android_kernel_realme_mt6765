@@ -2147,12 +2147,8 @@ int write_one_page(struct page *page, int wait);
 void task_dirty_inc(struct task_struct *tsk);
 
 /* readahead.c */
-#ifndef VENDOR_EDIT
-/* ZhiJie.Li@BSP.CHG.Basic, 2019/10/29, lzj Modify for increasing the default max readahead to speed-up reading */
-#define VM_MAX_READAHEAD	128	/* kbytes */
-#else
+/* Optimized for MT6765 eMMC 5.1 speedup: 512 KB default readahead */
 #define VM_MAX_READAHEAD	512	/* kbytes */
-#endif
 #define VM_MIN_READAHEAD	16	/* kbytes (includes current page) */
 
 int force_page_cache_readahead(struct address_space *mapping, struct file *filp,

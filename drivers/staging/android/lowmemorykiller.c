@@ -75,20 +75,24 @@ static short lowmem_warn_adj, lowmem_no_warn_adj = 200;
 static u32 lowmem_debug_level = 1;
 static short lowmem_adj[6] = {
 	0,
-	1,
-	6,
-	12,
+	100,
+	200,
+	300,
+	900,
+	906,
 };
 
-static int lowmem_adj_size = 4;
+static int lowmem_adj_size = 6;
 static int lowmem_minfree[6] = {
-	3 * 512,	/* 6MB */
-	2 * 1024,	/* 8MB */
-	4 * 1024,	/* 16MB */
-	16 * 1024,	/* 64MB */
+	23040,	/* ~90MB */
+	30720,	/* ~120MB */
+	38400,	/* ~150MB */
+	46080,	/* ~180MB */
+	61440,	/* ~240MB */
+	92160,	/* ~360MB */
 };
 
-static int lowmem_minfree_size = 4;
+static int lowmem_minfree_size = 6;
 #ifdef VENDOR_EDIT
 /*huacai.zhou@PSW.BSP.Kernel.MM 2018-01-15 modify for lowmemkill count */
 static bool lmk_cnt_enable = true;

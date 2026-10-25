@@ -96,6 +96,29 @@ static void ppm_hard_userlimit_status_change_cb(bool enable)
 
 	ppm_ver("hard userlimit policy status changed to %d\n", enable);
 
+	if (enable && hard_userlimit_data.limit && !hard_userlimit_data.is_freq_limited_by_user) {
+		bool is_limit = false;
+		if (hard_userlimit_policy.req.cluster_num >= 1) {
+			int idx0 = ppm_main_freq_to_idx(0, 1218000, CPUFREQ_RELATION_L);
+			if (idx0 != -1) {
+				hard_userlimit_data.limit[0].min_freq_idx = idx0;
+				is_limit = true;
+			}
+		}
+		if (hard_userlimit_policy.req.cluster_num >= 2) {
+			int idx1 = ppm_main_freq_to_idx(1, 745000, CPUFREQ_RELATION_L);
+			if (idx1 != -1) {
+				hard_userlimit_data.limit[1].min_freq_idx = idx1;
+				is_limit = true;
+			}
+		}
+		if (is_limit) {
+			hard_userlimit_data.is_freq_limited_by_user = true;
+			hard_userlimit_policy.is_activated = ppm_hard_userlimit_is_policy_active();
+			ppm_info("@%s: default hard userlimit applied: cluster0=1218MHz cluster1=745MHz\n", __func__);
+		}
+	}
+
 	FUNC_EXIT(FUNC_LV_POLICY);
 }
 

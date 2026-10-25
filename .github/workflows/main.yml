@@ -172,6 +172,18 @@ jobs:
          ZIP_NAME="Endfield-Kernel-Realme-MT6765-${{ github.run_id }}.zip"
          zip -r9 "$ZIP_NAME" * -x "WiFi-BT-Fix-Magisk.zip"
 
+    - name: Cleanup Old Releases
+      continue-on-error: true
+      run: |
+        echo "Cleaning up older releases..."
+        OLD_RELEASES=$(curl -s -H "Authorization: token ${{ secrets.MY_TOKEN || secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases" | jq -r '.[] | select(.tag_name != "40167833154" and .tag_name != "${{ github.run_id }}") | .id')
+        for rid in $OLD_RELEASES; do
+          echo "Deleting release ID $rid"
+          curl -s -X DELETE -H "Authorization: token ${{ secrets.MY_TOKEN || secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/$rid" || true
+        done
+
     - name: Upload to Release
       uses: softprops/action-gh-release@v2
       continue-on-error: true
