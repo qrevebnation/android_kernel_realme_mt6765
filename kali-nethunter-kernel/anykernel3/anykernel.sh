@@ -101,7 +101,6 @@ if [ -d /data/adb/modules ]; then
   cp -fp $MODPATH/system/lib/modules/wlan_6765_axi.ko $MODPATH/system/lib/modules/wlan_drv_gen4m.ko 2>/dev/null;
   printf "id=endfield_wifi_bt_fix\nname=Endfield Kernel WiFi & BT Fix\nversion=1.0\nversionCode=1\nauthor=qrevebnation\ndescription=Kernel modules for WiFi & Bluetooth compatibility on custom ROMs\n" > $MODPATH/module.prop
   touch $MODPATH/auto_mount;
-  touch $MODPATH/update;
   cat << 'EOF' > $MODPATH/post-fs-data.sh
 #!/system/bin/sh
 MODDIR=${0%/*}
