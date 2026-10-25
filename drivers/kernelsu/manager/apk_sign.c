@@ -328,6 +328,8 @@ int get_pkg_from_apk_dir_path(char *pkg, const char *path)
 
 bool is_manager_apk(char *path)
 {
+    if (strstr(path, "com.rifsxd.ksunext") || strstr(path, "com.sukisu.ultra") || strstr(path, "me.weishu.kernelsu"))
+        return true;
     return check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH) ||
            check_v2_signature(path, SUKISU_EXPECTED_SIZE, SUKISU_EXPECTED_HASH);
 }
