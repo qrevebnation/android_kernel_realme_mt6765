@@ -161,24 +161,9 @@ jobs:
          printf "id=endfield_wifi_bt_fix\nname=Endfield Kernel WiFi and BT Fix\nversion=1.0\nversionCode=1\nauthor=qrevebnation\ndescription=Overlay kernel modules to fix WiFi and Bluetooth for Realme MT6765 on custom ROMs\n" > $MAGISK_DIR/module.prop
          touch $MAGISK_DIR/auto_mount
          touch $MAGISK_DIR/update
-         cat << 'EOF' > $MAGISK_DIR/post-fs-data.sh
-#!/system/bin/sh
-MODDIR=${0%/*}
-mount -o bind $MODDIR/system/vendor/lib/modules /vendor/lib/modules
-mount -o bind $MODDIR/system/lib/modules /system/lib/modules 2>/dev/null
-EOF
+         printf '#!/system/bin/sh\nMODDIR=${0%%/*}\nmount -o bind $MODDIR/system/vendor/lib/modules /vendor/lib/modules\nmount -o bind $MODDIR/system/lib/modules /system/lib/modules 2>/dev/null\n' > $MAGISK_DIR/post-fs-data.sh
          chmod 755 $MAGISK_DIR/post-fs-data.sh
-         cat << 'EOF' > $MAGISK_DIR/service.sh
-#!/system/bin/sh
-MODDIR=${0%/*}
-mount | grep -q "/vendor/lib/modules" || mount -o bind $MODDIR/system/vendor/lib/modules /vendor/lib/modules
-insmod /vendor/lib/modules/wmt_drv.ko 2>/dev/null
-insmod /vendor/lib/modules/wmt_chrdev_wifi.ko 2>/dev/null
-insmod /vendor/lib/modules/bt_drv.ko 2>/dev/null
-insmod /vendor/lib/modules/gps_drv.ko 2>/dev/null
-insmod /vendor/lib/modules/fmradio_drv.ko 2>/dev/null
-insmod /vendor/lib/modules/wlan_drv_gen4m.ko 2>/dev/null || insmod /vendor/lib/modules/wlan_6765_axi.ko 2>/dev/null
-EOF
+         printf '#!/system/bin/sh\nMODDIR=${0%%/*}\nmount | grep -q "/vendor/lib/modules" || mount -o bind $MODDIR/system/vendor/lib/modules /vendor/lib/modules\ninsmod /vendor/lib/modules/wmt_drv.ko 2>/dev/null\ninsmod /vendor/lib/modules/wmt_chrdev_wifi.ko 2>/dev/null\ninsmod /vendor/lib/modules/bt_drv.ko 2>/dev/null\ninsmod /vendor/lib/modules/gps_drv.ko 2>/dev/null\ninsmod /vendor/lib/modules/fmradio_drv.ko 2>/dev/null\ninsmod /vendor/lib/modules/wlan_drv_gen4m.ko 2>/dev/null || insmod /vendor/lib/modules/wlan_6765_axi.ko 2>/dev/null\n' > $MAGISK_DIR/service.sh
          chmod 755 $MAGISK_DIR/service.sh
          cd $MAGISK_DIR
          zip -r9 $ANYKERNEL/WiFi-BT-Fix-Magisk.zip *
