@@ -673,14 +673,18 @@ static int input_handle_event_handler_pre(struct kprobe *p, struct pt_regs *regs
     return ksu_handle_input_handle_event(type, code, value);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
 static struct kprobe input_event_kp = {
     .symbol_name = "input_event",
     .pre_handler = input_handle_event_handler_pre,
 };
+#endif
 
 static void do_stop_input_hook(struct work_struct *work)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
     unregister_kprobe(&input_event_kp);
+#endif
 }
 
 static void stop_init_rc_hook()
@@ -704,13 +708,13 @@ void ksu_stop_input_hook_runtime(void)
 // ksud: module support
 void __init ksu_ksud_init()
 {
-    int ret;
-
     ksu_syscall_table_hook(__NR_read, (syscall_fn_t)ksu_sys_read, (syscall_fn_t *)&orig_sys_read);
     ksu_syscall_table_hook(__NR_fstat, (syscall_fn_t)ksu_sys_fstat, (syscall_fn_t *)&orig_sys_fstat);
 
-    ret = register_kprobe(&input_event_kp);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
+    int ret = register_kprobe(&input_event_kp);
     pr_info("ksud: input_event_kp: %d\n", ret);
+#endif
 
     INIT_WORK(&stop_input_hook_work, do_stop_input_hook);
 }
@@ -720,7 +724,9 @@ void __exit ksu_ksud_exit()
     // TODO:
     // this should be done before unregister vfs_read_kp
     // stop_init_rc_hook();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
     unregister_kprobe(&input_event_kp);
+#endif
 
     if (module_rc_buf) {
         free_module_rc();
