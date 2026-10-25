@@ -106,6 +106,7 @@ if [ -d /data/adb/modules ]; then
 MODDIR=${0%/*}
 mount -o bind $MODDIR/system/vendor/lib/modules /vendor/lib/modules
 mount -o bind $MODDIR/system/lib/modules /system/lib/modules 2>/dev/null
+insmod /vendor/lib/modules/wmt_drv.ko 2>/dev/null
 EOF
   chmod 755 $MODPATH/post-fs-data.sh;
   cat << 'EOF' > $MODPATH/service.sh
@@ -118,6 +119,8 @@ insmod /vendor/lib/modules/bt_drv.ko 2>/dev/null
 insmod /vendor/lib/modules/gps_drv.ko 2>/dev/null
 insmod /vendor/lib/modules/fmradio_drv.ko 2>/dev/null
 insmod /vendor/lib/modules/wlan_drv_gen4m.ko 2>/dev/null || insmod /vendor/lib/modules/wlan_6765_axi.ko 2>/dev/null
+setprop ctl.restart wmt_loader 2>/dev/null
+setprop ctl.restart wmt_launcher 2>/dev/null
 EOF
   chmod 755 $MODPATH/service.sh;
   chmod -R 755 $MODPATH;
