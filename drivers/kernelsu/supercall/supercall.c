@@ -165,16 +165,19 @@ static long ksu_handle_reboot_syscall(int orig_nr, const struct pt_regs *regs)
                 pr_warn("install fd add task_work failed\n");
             }
         }
+        return 0;
     }
 
     return ksu_call_orig_syscall(orig_nr, regs);
 }
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
 static struct kprobe reboot_kp = {
     .symbol_name = REBOOT_SYMBOL,
     .pre_handler = reboot_handler_pre,
 };
+#endif
 
 void __init ksu_supercalls_init(void)
 {
@@ -182,12 +185,14 @@ void __init ksu_supercalls_init(void)
 
     ksu_supercall_dump_commands();
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
     rc = register_kprobe(&reboot_kp);
     if (rc) {
         pr_err("reboot kprobe failed: %d\n", rc);
     } else {
         pr_info("reboot kprobe registered successfully\n");
     }
+#endif
 
 #ifdef __NR_reboot
     rc = ksu_register_syscall_hook(__NR_reboot, ksu_handle_reboot_syscall);
@@ -204,6 +209,8 @@ void __exit ksu_supercalls_exit(void)
 #ifdef __NR_reboot
     ksu_unregister_syscall_hook(__NR_reboot);
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
     unregister_kprobe(&reboot_kp);
+#endif
     ksu_supercall_cleanup_state();
 }

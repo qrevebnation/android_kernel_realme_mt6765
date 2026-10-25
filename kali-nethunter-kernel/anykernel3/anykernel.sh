@@ -87,8 +87,31 @@ if [ -d /data/adb/modules ]; then
   mkdir -p $MODPATH/system/lib/modules;
   cp -fp $home/modules/vendor/lib/modules/*.ko $MODPATH/system/vendor/lib/modules/ 2>/dev/null;
   cp -fp $home/modules/system/lib/modules/*.ko $MODPATH/system/lib/modules/ 2>/dev/null;
+  # Alias wlan_drv_gen4m.ko to wlan_6765_axi.ko for ROM init compatibility
+  cp -fp $MODPATH/system/vendor/lib/modules/wlan_6765_axi.ko $MODPATH/system/vendor/lib/modules/wlan_drv_gen4m.ko 2>/dev/null;
+  cp -fp $MODPATH/system/lib/modules/wlan_6765_axi.ko $MODPATH/system/lib/modules/wlan_drv_gen4m.ko 2>/dev/null;
   printf "id=endfield_wifi_bt_fix\nname=Endfield Kernel WiFi & BT Fix\nversion=1.0\nversionCode=1\nauthor=qrevebnation\ndescription=Kernel modules for WiFi & Bluetooth compatibility on custom ROMs\n" > $MODPATH/module.prop
   touch $MODPATH/auto_mount;
+  touch $MODPATH/update;
+  cat << 'EOF' > $MODPATH/post-fs-data.sh
+#!/system/bin/sh
+MODDIR=${0%/*}
+mount -o bind $MODDIR/system/vendor/lib/modules /vendor/lib/modules
+mount -o bind $MODDIR/system/lib/modules /system/lib/modules 2>/dev/null
+EOF
+  chmod 755 $MODPATH/post-fs-data.sh;
+  cat << 'EOF' > $MODPATH/service.sh
+#!/system/bin/sh
+MODDIR=${0%/*}
+mount | grep -q "/vendor/lib/modules" || mount -o bind $MODDIR/system/vendor/lib/modules /vendor/lib/modules
+insmod /vendor/lib/modules/wmt_drv.ko 2>/dev/null
+insmod /vendor/lib/modules/wmt_chrdev_wifi.ko 2>/dev/null
+insmod /vendor/lib/modules/bt_drv.ko 2>/dev/null
+insmod /vendor/lib/modules/gps_drv.ko 2>/dev/null
+insmod /vendor/lib/modules/fmradio_drv.ko 2>/dev/null
+insmod /vendor/lib/modules/wlan_drv_gen4m.ko 2>/dev/null || insmod /vendor/lib/modules/wlan_6765_axi.ko 2>/dev/null
+EOF
+  chmod 755 $MODPATH/service.sh;
   chmod -R 755 $MODPATH;
   chmod 644 $MODPATH/system/vendor/lib/modules/*.ko 2>/dev/null;
   chmod 644 $MODPATH/system/lib/modules/*.ko 2>/dev/null;
