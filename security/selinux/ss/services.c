@@ -657,9 +657,11 @@ static void context_struct_compute_av(struct context *scontext,
 	avkey.target_class = tclass;
 	avkey.specified = AVTAB_AV | AVTAB_XPERMS;
 	sattr = flex_array_get(policydb.type_attr_map_array, scontext->type - 1);
-	BUG_ON(!sattr);
+	if (WARN_ONCE(!sattr, "SELinux: invalid source type %d\n", scontext->type))
+		return;
 	tattr = flex_array_get(policydb.type_attr_map_array, tcontext->type - 1);
-	BUG_ON(!tattr);
+	if (WARN_ONCE(!tattr, "SELinux: invalid target type %d\n", tcontext->type))
+		return;
 	ebitmap_for_each_positive_bit(sattr, snode, i) {
 		ebitmap_for_each_positive_bit(tattr, tnode, j) {
 			avkey.source_type = i + 1;

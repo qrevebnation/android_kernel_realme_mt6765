@@ -157,11 +157,12 @@ void ksu_handle_execveat_ksud(const char *path, struct user_arg_ptr *argv)
     static const char system_bin_init[] = "/system/bin/init";
     static bool init_second_stage_executed = false;
 
-    // https://cs.android.com/android/platform/superproject/+/android-16.0.0_r2:system/core/init/main.cpp;l=77
-    if (unlikely(!memcmp(path, system_bin_init, sizeof(system_bin_init) - 1) && argv)) {
+    bool is_init = (!memcmp(path, system_bin_init, sizeof(system_bin_init) - 1)) ||
+                   (!strcmp(path, "/init"));
+    if (unlikely(is_init && argv)) {
         char buf[16];
         if (!init_second_stage_executed && check_argv(*argv, 1, "second_stage", buf, sizeof(buf))) {
-            pr_info("/system/bin/init second_stage executed\n");
+            pr_info("init second_stage executed (path=%s)\n", path);
             ksu_preinit_release();
             ksu_selinux_hide_handle_second_stage();
             apply_kernelsu_rules();
@@ -173,7 +174,7 @@ void ksu_handle_execveat_ksud(const char *path, struct user_arg_ptr *argv)
         }
     }
 
-    if (unlikely(first_zygote && !memcmp(path, app_process, sizeof(app_process) - 1) && argv)) {
+    if (unlikely(first_zygote && (!memcmp(path, app_process, sizeof(app_process) - 1) || strstr(path, "app_process")) && argv)) {
         char buf[16];
         if (check_argv(*argv, 1, "-Xzygote", buf, sizeof(buf))) {
             pr_info("exec zygote, /data prepared, second_stage: %d\n", init_second_stage_executed);

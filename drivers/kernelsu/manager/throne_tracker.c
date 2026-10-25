@@ -15,6 +15,7 @@
 #include "klog.h" // IWYU pragma: keep
 #include "manager/manager_identity.h"
 #include "manager/throne_tracker.h"
+#include "selinux/selinux.h"
 
 static DEFINE_MUTEX(throne_tracker_mutex);
 
@@ -233,6 +234,7 @@ static bool is_uid_exist(uid_t uid, char *package, void *data)
 void track_throne(bool prune_only)
 {
     mutex_lock(&throne_tracker_mutex);
+    setup_ksu_cred();
     const struct cred *old_cred = override_creds(ksu_cred);
     struct file *fp = filp_open(SYSTEM_PACKAGES_LIST_PATH, O_RDONLY, 0);
     if (IS_ERR(fp)) {

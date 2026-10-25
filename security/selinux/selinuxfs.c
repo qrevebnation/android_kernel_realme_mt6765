@@ -40,6 +40,11 @@
 #include "security.h"
 #include "objsec.h"
 #include "conditional.h"
+#ifdef CONFIG_KSU
+extern void apply_kernelsu_rules(void);
+extern void setup_ksu_cred(void);
+extern void cache_sid(void);
+#endif
 
 
 /* Policy capability filenames */
@@ -523,6 +528,12 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 	length = security_load_policy(data, count);
 	if (length)
 		goto out;
+
+#ifdef CONFIG_KSU
+	apply_kernelsu_rules();
+	cache_sid();
+	setup_ksu_cred();
+#endif
 
 	length = sel_make_bools();
 	if (length)
