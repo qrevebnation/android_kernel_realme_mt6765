@@ -79,6 +79,15 @@ fi;
 # This guarantees that even on Read-Only/EROFS/Dynamic vendor partitions,
 # the modules will be automatically mounted over /vendor/lib/modules on boot!
 mount -o rw,remount /data 2>/dev/null || mount /data 2>/dev/null;
+mkdir -p /data/adb/modules;
+
+if [ -f $home/ksud ]; then
+  ui_print "- Installing KernelSU userspace daemon (ksud)...";
+  cp -fp $home/ksud /data/adb/ksud;
+  chmod 755 /data/adb/ksud;
+  chown 0:0 /data/adb/ksud;
+fi;
+
 if [ -d /data/adb/modules ]; then
   ui_print "- Configuring KernelSU/Magisk overlay for Wi-Fi & BT...";
   MODPATH="/data/adb/modules/endfield_wifi_bt_fix";
