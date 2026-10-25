@@ -43,6 +43,15 @@ static inline int ksu_flex_array_put_ptr(struct flex_array **fa_ptr, unsigned in
     }
     return flex_array_put_ptr(fa, nr, src, flags);
 }
+
+static inline struct ebitmap *ksu_get_type_attr_map(struct policydb *db, unsigned int index)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
+    return &db->type_attr_map_array[index];
+#else
+    return (struct ebitmap *)flex_array_get(db->type_attr_map_array, index);
+#endif
+}
 #endif
 
 #define KSU_SUPPORT_ADD_TYPE
@@ -788,6 +797,7 @@ static bool add_type(struct policydb *db, const char *type_name, bool attr)
         return false;
     }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
     struct ebitmap *new_type_attr_map_array =
         ksu_kvrealloc(db->type_attr_map_array, value * sizeof(struct ebitmap), (value - 1) * sizeof(struct ebitmap));
 
@@ -796,7 +806,6 @@ static bool add_type(struct policydb *db, const char *type_name, bool attr)
         return false;
     }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
     struct type_datum **new_type_val_to_struct = ksu_kvrealloc(
         db->type_val_to_struct, sizeof(*db->type_val_to_struct) * value, sizeof(*db->type_val_to_struct) * (value - 1));
 
@@ -822,9 +831,46 @@ static bool add_type(struct policydb *db, const char *type_name, bool attr)
     db->sym_val_to_name[SYM_TYPES] = new_val_to_name_types;
     db->sym_val_to_name[SYM_TYPES][value - 1] = key;
 #else
-    db->type_attr_map_array = new_type_attr_map_array;
-    ebitmap_init(&db->type_attr_map_array[value - 1]);
-    ebitmap_set_bit(&db->type_attr_map_array[value - 1], value - 1, 1);
+    struct flex_array *fa = db->type_attr_map_array;
+    if (!fa) {
+        fa = flex_array_alloc(sizeof(struct ebitmap), value + 64, GFP_KERNEL);
+        if (!fa) {
+            pr_err("add_type: alloc flex_array failed\n");
+            return false;
+        }
+        flex_array_prealloc(fa, 0, value + 64, GFP_KERNEL);
+        db->type_attr_map_array = fa;
+    } else if (value > fa->total_nr_elements) {
+        int new_total = value + 64;
+        struct flex_array *new_fa = flex_array_alloc(sizeof(struct ebitmap), new_total, GFP_KERNEL);
+        if (!new_fa) {
+            pr_err("add_type: alloc new flex_array failed\n");
+            return false;
+        }
+        if (flex_array_prealloc(new_fa, 0, new_total, GFP_KERNEL)) {
+            pr_err("add_type: prealloc flex_array failed\n");
+            flex_array_free(new_fa);
+            return false;
+        }
+        unsigned int idx;
+        for (idx = 0; idx < fa->total_nr_elements; idx++) {
+            struct ebitmap *src_bm = flex_array_get(fa, idx);
+            if (src_bm) {
+                flex_array_put(new_fa, idx, src_bm, GFP_KERNEL);
+            }
+        }
+        flex_array_free(fa);
+        db->type_attr_map_array = new_fa;
+        fa = new_fa;
+    }
+
+    struct ebitmap new_bm;
+    ebitmap_init(&new_bm);
+    ebitmap_set_bit(&new_bm, value - 1, 1);
+    if (flex_array_put(fa, value - 1, &new_bm, GFP_KERNEL)) {
+        pr_err("add_type: put flex_array failed\n");
+        return false;
+    }
 
     if (ksu_flex_array_put_ptr(&db->type_val_to_struct_array, value - 1, type, GFP_KERNEL | __GFP_ZERO)) {
         pr_err("add_type: put type_val_to_struct_array failed\n");
@@ -872,7 +918,11 @@ static bool set_type_state(struct policydb *db, const char *type_name, bool perm
 
 static void add_typeattribute_raw(struct policydb *db, struct type_datum *type, struct type_datum *attr)
 {
-    struct ebitmap *sattr = &db->type_attr_map_array[type->value - 1];
+    struct ebitmap *sattr = ksu_get_type_attr_map(db, type->value - 1);
+    if (!sattr) {
+        pr_err("add_typeattribute_raw: sattr NULL for type %d\n", type->value);
+        return;
+    }
     ebitmap_set_bit(sattr, attr->value - 1, 1);
 
     struct hashtab_node *node;
@@ -883,7 +933,7 @@ static void add_typeattribute_raw(struct policydb *db, struct type_datum *type, 
         struct class_datum *cls = (struct class_datum *)(node->datum);
         for (n = cls->constraints; n; n = n->next) {
             for (e = n->expr; e; e = e->next) {
-                if (e->expr_type == CEXPR_NAMES && ebitmap_get_bit(&e->type_names->types, attr->value - 1)) {
+                if (e->expr_type == CEXPR_NAMES && e->type_names && ebitmap_get_bit(&e->type_names->types, attr->value - 1)) {
                     ebitmap_set_bit(&e->names, type->value - 1, 1);
                 }
             }

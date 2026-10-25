@@ -61,6 +61,13 @@ void apply_kernelsu_rules()
 {
     struct policydb *db;
 
+#ifndef KSU_COMPAT_USE_SELINUX_STATE
+    if (!policydb.type_attr_map_array || policydb.p_types.nprim == 0) {
+        pr_warn("apply_kernelsu_rules: policydb not ready, skip\n");
+        return;
+    }
+#endif
+
     if (!getenforce()) {
         pr_info("SELinux permissive or disabled, apply rules!\n");
     }
